@@ -495,4 +495,475 @@
         <div class="stat-row">
           <div class="stat-label">Chip / Pitch</div>
           <div class="tick-group">
-            <button class="
+            <button class="tick-btn" data-field="chip" data-val="yes">✓</button>
+            <button class="tick-btn" data-field="chip" data-val="no">✗</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <button class="btn btn-secondary" id="btnPrevHole" style="flex:0.6;">← Prev</button>
+        <button class="btn btn-primary" id="btnNextHole">Next Hole →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="history" class="screen">
+    <div class="card">
+      <h2>All Rounds</h2>
+      <ul class="round-list" id="historyList"></ul>
+      <div class="empty" id="historyEmpty" style="display:none;">No rounds yet.<br>Start one from the New Round tab.</div>
+    </div>
+    <button class="btn btn-danger" id="btnClearAll" style="margin-top:16px;">Clear This Player’s Data</button>
+  </div>
+
+  <!-- Player Switch Modal -->
+  <div class="modal-overlay" id="playerModal">
+    <div class="modal">
+      <h3>Select Player</h3>
+      <ul class="player-list" id="playerList"></ul>
+      <div style="margin-bottom:10px;">
+        <input type="text" id="newPlayerName" placeholder="New player name" maxlength="20" />
+      </div>
+      <button class="btn btn-primary" id="btnAddPlayer" style="margin-bottom:8px;">Add Player</button>
+      <button class="btn btn-secondary" id="btnClosePlayerModal">Close</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const HOLES = [
+      { n:1,  par:4, si:9,  name:"" },
+      { n:2,  par:5, si:15, name:"" },
+      { n:3,  par:4, si:7,  name:"" },
+      { n:4,  par:4, si:13, name:"" },
+      { n:5,  par:4, si:5,  name:"" },
+      { n:6,  par:5, si:3,  name:"Road Hole" },
+      { n:7,  par:3, si:17, name:"Larches" },
+      { n:8,  par:4, si:11, name:"" },
+      { n:9,  par:4, si:1,  name:"" },
+      { n:10, par:3, si:6,  name:"" },
+      { n:11, par:4, si:18, name:"" },
+      { n:12, par:4, si:10, name:"Dovecot" },
+      { n:13, par:3, si:12, name:"" },
+      { n:14, par:4, si:2,  name:"" },
+      { n:15, par:5, si:16, name:"" },
+      { n:16, par:4, si:4,  name:"Hillside" },
+      { n:17, par:3, si:14, name:"" },
+      { n:18, par:4, si:8,  name:"Decker Hill" }
+    ];
+
+    let players = JSON.parse(localStorage.getItem('shifnal_players') || '[]');
+    let currentPlayer = localStorage.getItem('shifnal_current_player') || null;
+    let rounds = [];
+    let currentRound = null;
+    let currentHoleIdx = 0;
+    let timeRange = 'all';
+    let isEditing = false;
+
+    function loadRounds() {
+      if (!currentPlayer) { rounds = []; return; }
+      rounds = JSON.parse(localStorage.getItem('shifnal_rounds_' + currentPlayer) || '[]');
+    }
+    function saveRounds() {
+      if (!currentPlayer) return;
+      localStorage.setItem('shifnal_rounds_' + currentPlayer, JSON.stringify(rounds));
+    }
+    function savePlayers() {
+      localStorage.setItem('shifnal_players', JSON.stringify(players));
+      if (currentPlayer) localStorage.setItem('shifnal_current_player', currentPlayer);
+    }
+    function setPlayer(name) {
+      currentPlayer = name;
+      if (!players.includes(name)) { players.push(name); savePlayers(); }
+      localStorage.setItem('shifnal_current_player', name);
+      document.getElementById('currentPlayerName').textContent = name;
+      loadRounds();
+      renderDashboard();
+      renderHistory();
+      toast('Switched to ' + name);
+    }
+    function ensurePlayer() {
+      if (currentPlayer && players.includes(currentPlayer)) {
+        document.getElementById('currentPlayerName').textContent = currentPlayer;
+        loadRounds();
+        return;
+      }
+      openPlayerModal(true);
+    }
+    function openPlayerModal(force = false) {
+      const list = document.getElementById('playerList');
+      list.innerHTML = players.map(p => `
+        <li class="${p === currentPlayer ? 'active' : ''}" data-name="${p}">
+          <span class="name">${p}</span>
+          ${p === currentPlayer ? '<span style="color:var(--green-light);font-size:0.75rem;">Active</span>' : ''}
+        </li>
+      `).join('') || '<li style="justify-content:center;color:var(--muted);">No players yet</li>';
+      list.querySelectorAll('li[data-name]').forEach(li => {
+        li.addEventListener('click', () => { setPlayer(li.dataset.name); closePlayerModal(); });
+      });
+      document.getElementById('playerModal').classList.add('show');
+      if (force && players.length === 0) document.getElementById('newPlayerName').focus();
+    }
+    function closePlayerModal() {
+      if (!currentPlayer && players.length === 0) { toast('Please add a player name first'); return; }
+      document.getElementById('playerModal').classList.remove('show');
+    }
+
+    document.getElementById('playerChip').addEventListener('click', () => openPlayerModal());
+    document.getElementById('btnSwitchPlayer').addEventListener('click', () => openPlayerModal());
+    document.getElementById('btnClosePlayerModal').addEventListener('click', closePlayerModal);
+    document.getElementById('btnAddPlayer').addEventListener('click', () => {
+      const name = document.getElementById('newPlayerName').value.trim();
+      if (!name) { toast('Enter a name'); return; }
+      if (players.includes(name)) { toast('Player already exists'); return; }
+      setPlayer(name);
+      document.getElementById('newPlayerName').value = '';
+      closePlayerModal();
+    });
+
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    function defaultHole(par) {
+      return { score: par, fir: par === 3 ? 'na' : null, miss: null, gir: null, missGreen: null, putts: 2, bunker: null, chip: null };
+    }
+    function pct(n, d) { if (!d) return '–'; return Math.round((n / d) * 100) + '%'; }
+    function avg(arr) { if (!arr.length) return '–'; return (arr.reduce((a,b)=>a+b,0) / arr.length).toFixed(1); }
+    function formatDate(iso) {
+      const d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    }
+
+    document.querySelectorAll('#mainNav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(btn.dataset.screen).classList.add('active');
+        if (btn.dataset.screen === 'dashboard') renderDashboard();
+        if (btn.dataset.screen === 'history') renderHistory();
+      });
+    });
+
+    document.querySelectorAll('#timeFilters button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#timeFilters button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        timeRange = btn.dataset.range;
+        renderDashboard();
+      });
+    });
+
+    function getFilteredRounds() {
+      if (timeRange === 'all') return rounds;
+      const days = parseInt(timeRange);
+      const cutoff = Date.now() - days * 86400000;
+      return rounds.filter(r => new Date(r.date).getTime() >= cutoff);
+    }
+
+    function renderDashboard() {
+      if (!currentPlayer) { document.getElementById('roundCount').textContent = ''; return; }
+      const filtered = getFilteredRounds();
+      document.getElementById('roundCount').textContent = filtered.length ? `(${filtered.length} rounds)` : '';
+
+      let firHit = 0, firOpp = 0, girHit = 0, girOpp = 0;
+      let puttsArr = [], scores = [], bunkers = 0, chips = 0;
+      let missLeft = 0, missRight = 0, missTotal = 0;
+      let gLeft = 0, gRight = 0, gShort = 0, gLong = 0, gMissTotal = 0;
+
+      filtered.forEach(r => {
+        scores.push(r.holes.reduce((s,h) => s + (h.score || 0), 0));
+        r.holes.forEach((h, i) => {
+          const par = HOLES[i].par;
+          if (par !== 3) {
+            firOpp++;
+            if (h.fir === 'yes') firHit++;
+            if (h.fir === 'no') {
+              missTotal++;
+              if (h.miss === 'left') missLeft++;
+              if (h.miss === 'right') missRight++;
+            }
+          }
+          girOpp++;
+          if (h.gir === 'yes') girHit++;
+          if (h.gir === 'no') {
+            gMissTotal++;
+            if (h.missGreen === 'left') gLeft++;
+            if (h.missGreen === 'right') gRight++;
+            if (h.missGreen === 'short') gShort++;
+            if (h.missGreen === 'long') gLong++;
+          }
+          if (h.putts != null) puttsArr.push(h.putts);
+          if (h.bunker === 'yes') bunkers++;
+          if (h.chip === 'yes') chips++;
+        });
+      });
+
+      document.getElementById('mFIR').textContent = pct(firHit, firOpp);
+      document.getElementById('mGIR').textContent = pct(girHit, girOpp);
+      document.getElementById('mPutts').textContent = avg(puttsArr);
+      document.getElementById('mScore').textContent = avg(scores);
+      document.getElementById('mBunker').textContent = filtered.length ? (bunkers / filtered.length).toFixed(1) : '–';
+      document.getElementById('mChip').textContent = filtered.length ? (chips / filtered.length).toFixed(1) : '–';
+      document.getElementById('mLeft').textContent = missTotal ? pct(missLeft, missTotal) : '–';
+      document.getElementById('mRight').textContent = missTotal ? pct(missRight, missTotal) : '–';
+      document.getElementById('mGLeft').textContent = gMissTotal ? pct(gLeft, gMissTotal) : '–';
+      document.getElementById('mGRight').textContent = gMissTotal ? pct(gRight, gMissTotal) : '–';
+      document.getElementById('mGShort').textContent = gMissTotal ? pct(gShort, gMissTotal) : '–';
+      document.getElementById('mGLong').textContent = gMissTotal ? pct(gLong, gMissTotal) : '–';
+
+      const recent = filtered.slice().sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
+      const ul = document.getElementById('dashRecent');
+      if (!recent.length) {
+        ul.innerHTML = '<li class="empty">No rounds in this period</li>';
+      } else {
+        ul.innerHTML = recent.map(r => {
+          const total = r.holes.reduce((s,h) => s + (h.score||0), 0);
+          return `<li class="round-item">
+            <div><div class="date">${formatDate(r.date)}</div><div class="meta">${r.holes.filter(h=>h.score).length} holes</div></div>
+            <div class="score">${total}</div>
+          </li>`;
+        }).join('');
+      }
+    }
+
+    document.getElementById('roundDate').valueAsDate = new Date();
+
+    document.getElementById('btnStartRound').addEventListener('click', () => {
+      if (!currentPlayer) { openPlayerModal(true); return; }
+      const date = document.getElementById('roundDate').value;
+      if (!date) { toast('Pick a date'); return; }
+      isEditing = false;
+      currentRound = { id: Date.now().toString(), date, holes: HOLES.map(h => defaultHole(h.par)) };
+      currentHoleIdx = 0;
+      document.getElementById('roundSetup').style.display = 'none';
+      document.getElementById('roundEntry').style.display = 'block';
+      document.getElementById('editBanner').style.display = 'none';
+      buildHoleNav();
+      renderHole();
+    });
+
+    function startEditRound(round) {
+      isEditing = true;
+      currentRound = JSON.parse(JSON.stringify(round));
+      currentRound.holes.forEach(h => { if (h.missGreen === undefined) h.missGreen = null; });
+      currentHoleIdx = 0;
+      document.getElementById('roundSetup').style.display = 'none';
+      document.getElementById('roundEntry').style.display = 'block';
+      document.getElementById('editBanner').style.display = 'block';
+      document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
+      document.querySelector('[data-screen="newround"]').classList.add('active');
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById('newround').classList.add('active');
+      buildHoleNav();
+      renderHole();
+    }
+
+    function buildHoleNav() {
+      const nav = document.getElementById('holeNav');
+      nav.innerHTML = HOLES.map((h,i) => 
+        `<button class="hole-pill ${i===currentHoleIdx?'current':''}" data-idx="${i}">${h.n}</button>`
+      ).join('');
+      nav.querySelectorAll('.hole-pill').forEach(btn => {
+        btn.addEventListener('click', () => { currentHoleIdx = parseInt(btn.dataset.idx); renderHole(); });
+      });
+    }
+
+    function renderHole() {
+      const h = HOLES[currentHoleIdx];
+      const data = currentRound.holes[currentHoleIdx];
+      document.getElementById('holeTitle').textContent = `Hole ${h.n}${h.name ? ' – ' + h.name : ''}`;
+      document.getElementById('holePar').textContent = `Par ${h.par} · SI ${h.si}`;
+      document.getElementById('valScore').textContent = data.score;
+      document.getElementById('valPutts').textContent = data.putts;
+
+      const firRow = document.getElementById('firRow');
+      const missRow = document.getElementById('missRow');
+      if (h.par === 3) {
+        firRow.style.display = 'none';
+        missRow.style.display = 'none';
+        data.fir = 'na';
+      } else {
+        firRow.style.display = 'flex';
+        missRow.style.display = data.fir === 'no' ? 'flex' : 'none';
+      }
+      document.getElementById('missGreenRow').style.display = data.gir === 'no' ? 'flex' : 'none';
+
+      setTick('fir', data.fir);
+      setTick('gir', data.gir);
+      setTick('bunker', data.bunker);
+      setTick('chip', data.chip);
+      setDir('miss', data.miss);
+      setDir('missGreen', data.missGreen);
+
+      document.querySelectorAll('.hole-pill').forEach((p,i) => {
+        p.classList.toggle('current', i === currentHoleIdx);
+        const done = currentRound.holes[i].gir !== null;
+        p.classList.toggle('done', done && i !== currentHoleIdx);
+      });
+
+      document.getElementById('btnPrevHole').style.visibility = currentHoleIdx === 0 ? 'hidden' : 'visible';
+      document.getElementById('btnNextHole').textContent = currentHoleIdx === 17 
+        ? (isEditing ? 'Save Changes ✓' : 'Finish Round ✓') 
+        : 'Next Hole →';
+    }
+
+    function setTick(field, val) {
+      document.querySelectorAll(`.tick-btn[data-field="${field}"]`).forEach(btn => {
+        btn.classList.remove('on-yes','on-no','on-na');
+        if (btn.dataset.val === val) {
+          btn.classList.add(val === 'yes' ? 'on-yes' : val === 'no' ? 'on-no' : 'on-na');
+        }
+      });
+    }
+    function setDir(field, val) {
+      document.querySelectorAll(`.dir-btn[data-field="${field}"]`).forEach(btn => {
+        btn.classList.toggle('on', btn.dataset.val === val);
+      });
+    }
+
+    document.querySelectorAll('.num-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!currentRound) return;
+        const field = btn.dataset.field;
+        const dir = parseInt(btn.dataset.dir);
+        const data = currentRound.holes[currentHoleIdx];
+        if (field === 'score') {
+          data.score = Math.max(1, Math.min(15, data.score + dir));
+          document.getElementById('valScore').textContent = data.score;
+        } else if (field === 'putts') {
+          data.putts = Math.max(0, Math.min(6, data.putts + dir));
+          document.getElementById('valPutts').textContent = data.putts;
+        }
+      });
+    });
+
+    document.querySelectorAll('.tick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!currentRound) return;
+        const field = btn.dataset.field;
+        const val = btn.dataset.val;
+        const data = currentRound.holes[currentHoleIdx];
+        data[field] = val;
+        setTick(field, val);
+        if (field === 'fir') {
+          document.getElementById('missRow').style.display = val === 'no' ? 'flex' : 'none';
+          if (val === 'yes') data.miss = null;
+        }
+        if (field === 'gir') {
+          document.getElementById('missGreenRow').style.display = val === 'no' ? 'flex' : 'none';
+          if (val === 'yes') data.missGreen = null;
+        }
+      });
+    });
+
+    document.querySelectorAll('.dir-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!currentRound) return;
+        const field = btn.dataset.field;
+        const data = currentRound.holes[currentHoleIdx];
+        data[field] = btn.dataset.val;
+        setDir(field, btn.dataset.val);
+      });
+    });
+
+    document.getElementById('btnPrevHole').addEventListener('click', () => {
+      if (currentHoleIdx > 0) { currentHoleIdx--; renderHole(); }
+    });
+
+    document.getElementById('btnNextHole').addEventListener('click', () => {
+      if (currentHoleIdx < 17) {
+        currentHoleIdx++;
+        renderHole();
+      } else {
+        if (isEditing) {
+          const idx = rounds.findIndex(r => r.id === currentRound.id);
+          if (idx !== -1) rounds[idx] = currentRound;
+          toast('Round updated!');
+        } else {
+          rounds.push(currentRound);
+          toast('Round saved!');
+        }
+        saveRounds();
+        currentRound = null;
+        isEditing = false;
+        document.getElementById('roundSetup').style.display = 'block';
+        document.getElementById('roundEntry').style.display = 'none';
+        document.querySelector('[data-screen="dashboard"]').click();
+      }
+    });
+
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      const empty = document.getElementById('historyEmpty');
+      if (!rounds.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      const sorted = rounds.slice().sort((a,b) => b.date.localeCompare(a.date));
+      list.innerHTML = sorted.map(r => {
+        const total = r.holes.reduce((s,h) => s + (h.score||0), 0);
+        const firs = r.holes.filter((h,i) => HOLES[i].par !== 3 && h.fir === 'yes').length;
+        const firOpp = r.holes.filter((_,i) => HOLES[i].par !== 3).length;
+        const girs = r.holes.filter(h => h.gir === 'yes').length;
+        return `<li class="round-item">
+          <div style="flex:1;min-width:0;">
+            <div class="date">${formatDate(r.date)}</div>
+            <div class="meta">FIR ${firs}/${firOpp} · GIR ${girs}/18</div>
+          </div>
+          <div class="score">${total}</div>
+          <div class="round-actions">
+            <button class="btn btn-secondary btn-sm" data-edit="${r.id}">Edit</button>
+            <button class="btn btn-danger btn-sm" data-delete="${r.id}">Del</button>
+          </div>
+        </li>`;
+      }).join('');
+
+      list.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const round = rounds.find(r => r.id === btn.dataset.edit);
+          if (round) startEditRound(round);
+        });
+      });
+      list.querySelectorAll('[data-delete]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm('Delete this round?')) {
+            rounds = rounds.filter(r => r.id !== btn.dataset.delete);
+            saveRounds();
+            renderHistory();
+            toast('Round deleted');
+          }
+        });
+      });
+    }
+
+    document.getElementById('btnClearAll').addEventListener('click', () => {
+      if (!currentPlayer) return;
+      if (confirm(`Delete ALL rounds for ${currentPlayer}?`)) {
+        rounds = [];
+        saveRounds();
+        renderHistory();
+        renderDashboard();
+        toast('All data cleared for ' + currentPlayer);
+      }
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    ensurePlayer();
+    renderDashboard();
+  </script>
+</body>
+</html>

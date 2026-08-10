@@ -34,14 +34,34 @@
     }
     header {
       background: linear-gradient(135deg, #14532d, #166534);
-      padding: 14px 16px 12px;
+      padding: 12px 16px 10px;
       position: sticky;
       top: 0;
       z-index: 50;
       box-shadow: 0 2px 12px rgba(0,0,0,.4);
     }
-    header h1 { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
-    header p { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+    header h1 { font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    header p { font-size: 0.72rem; opacity: 0.85; margin-top: 2px; }
+    .player-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 8px;
+      gap: 8px;
+    }
+    .player-chip {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 20px;
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+    }
+    .player-chip span { opacity: 0.8; font-weight: 400; }
     nav {
       display: flex;
       gap: 6px;
@@ -67,7 +87,7 @@
       background: var(--green);
       color: white;
     }
-    .screen { display: none; padding: 14px 12px 80px; }
+    .screen { display: none; padding: 14px 12px 90px; }
     .screen.active { display: block; }
     .card {
       background: var(--card);
@@ -82,14 +102,15 @@
       grid-template-columns: 1fr 1fr;
       gap: 10px;
     }
+    .metrics.three { grid-template-columns: 1fr 1fr 1fr; }
     .metric {
       background: var(--card2);
       border-radius: 12px;
-      padding: 12px;
+      padding: 12px 8px;
       text-align: center;
     }
-    .metric .val { font-size: 1.6rem; font-weight: 800; color: var(--green-light); }
-    .metric .label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .metric .val { font-size: 1.45rem; font-weight: 800; color: var(--green-light); }
+    .metric .label { font-size: 0.68rem; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
     .filters {
       display: flex;
       gap: 6px;
@@ -126,6 +147,12 @@
     .btn-primary { background: var(--green); color: white; }
     .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
     .btn-danger { background: #7f1d1d; color: #fecaca; }
+    .btn-sm {
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      width: auto;
+      border-radius: 8px;
+    }
     .hole-nav {
       display: flex;
       gap: 4px;
@@ -155,7 +182,7 @@
       align-items: center;
       margin-bottom: 12px;
     }
-    .hole-header h2 { font-size: 1.3rem; }
+    .hole-header h2 { font-size: 1.25rem; }
     .par-badge {
       background: var(--card2);
       padding: 4px 10px;
@@ -169,6 +196,7 @@
       justify-content: space-between;
       padding: 10px 0;
       border-bottom: 1px solid var(--border);
+      gap: 8px;
     }
     .stat-row:last-child { border-bottom: none; }
     .stat-label { font-weight: 600; font-size: 0.9rem; }
@@ -207,14 +235,14 @@
       font-size: 1.2rem;
       font-weight: 800;
     }
-    .dir-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dir-group { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
     .dir-btn {
-      padding: 8px 12px;
+      padding: 8px 11px;
       border-radius: 8px;
       border: 2px solid var(--border);
       background: var(--card2);
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
     }
     .dir-btn.on { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
@@ -228,10 +256,12 @@
       justify-content: space-between;
       align-items: center;
       border: 1px solid var(--border);
+      gap: 10px;
     }
     .round-item .date { font-weight: 700; }
     .round-item .score { font-size: 1.1rem; color: var(--green-light); font-weight: 800; }
     .round-item .meta { font-size: 0.75rem; color: var(--muted); }
+    .round-actions { display: flex; gap: 6px; flex-shrink: 0; }
     .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
     .footer-actions {
       position: fixed;
@@ -259,9 +289,10 @@
       transition: opacity 0.3s;
       pointer-events: none;
       z-index: 100;
+      white-space: nowrap;
     }
     .toast.show { opacity: 1; }
-    input[type="date"] {
+    input[type="date"], input[type="text"] {
       background: var(--card2);
       border: 1px solid var(--border);
       color: var(--text);
@@ -270,18 +301,48 @@
       font-size: 1rem;
       width: 100%;
     }
-    .progress-bar {
-      height: 6px;
-      background: var(--card2);
-      border-radius: 3px;
-      overflow: hidden;
-      margin-top: 8px;
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      z-index: 200;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
     }
-    .progress-fill {
-      height: 100%;
-      background: var(--green-light);
-      border-radius: 3px;
-      transition: width 0.3s;
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: var(--card);
+      border-radius: 20px 20px 0 0;
+      padding: 20px 16px calc(20px + env(safe-area-inset-bottom));
+      width: 100%;
+      max-width: 500px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    .modal h3 { margin-bottom: 14px; font-size: 1.1rem; }
+    .player-list { list-style: none; margin-bottom: 14px; }
+    .player-list li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      background: var(--card2);
+      border-radius: 10px;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .player-list li.active { border: 2px solid var(--green-light); }
+    .player-list li .name { font-weight: 600; }
+    .edit-banner {
+      background: #1e3a5f;
+      color: #93c5fd;
+      padding: 8px 12px;
+      border-radius: 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin-bottom: 10px;
+      text-align: center;
     }
   </style>
 </head>
@@ -289,6 +350,12 @@
   <header>
     <h1>⛳ Shifnal Stats</h1>
     <p>Decker Hill • Par 71</p>
+    <div class="player-bar">
+      <div class="player-chip" id="playerChip">
+        <span>Player:</span> <strong id="currentPlayerName">–</strong>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="btnSwitchPlayer" style="width:auto;padding:6px 12px;">Switch</button>
+    </div>
   </header>
 
   <nav id="mainNav">
@@ -308,7 +375,7 @@
 
     <div class="card">
       <h2>Key Metrics <span id="roundCount" style="font-weight:400;color:var(--muted);font-size:0.8rem"></span></h2>
-      <div class="metrics" id="metricsGrid">
+      <div class="metrics">
         <div class="metric"><div class="val" id="mFIR">–</div><div class="label">FIR %</div></div>
         <div class="metric"><div class="val" id="mGIR">–</div><div class="label">GIR %</div></div>
         <div class="metric"><div class="val" id="mPutts">–</div><div class="label">Avg Putts</div></div>
@@ -319,10 +386,22 @@
     </div>
 
     <div class="card">
-      <h2>Miss Tendencies (when fairway missed)</h2>
+      <h2>Fairway Miss Tendencies</h2>
       <div class="metrics">
         <div class="metric"><div class="val" id="mLeft">–</div><div class="label">Miss Left</div></div>
         <div class="metric"><div class="val" id="mRight">–</div><div class="label">Miss Right</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Missed Green Tendencies</h2>
+      <div class="metrics three">
+        <div class="metric"><div class="val" id="mGLeft">–</div><div class="label">Left</div></div>
+        <div class="metric"><div class="val" id="mGRight">–</div><div class="label">Right</div></div>
+        <div class="metric"><div class="val" id="mGShort">–</div><div class="label">Short</div></div>
+      </div>
+      <div class="metrics" style="margin-top:10px; grid-template-columns: 1fr;">
+        <div class="metric"><div class="val" id="mGLong">–</div><div class="label">Long</div></div>
       </div>
     </div>
 
@@ -332,7 +411,7 @@
     </div>
   </div>
 
-  <!-- NEW ROUND -->
+  <!-- NEW ROUND / EDIT -->
   <div id="newround" class="screen">
     <div class="card" id="roundSetup">
       <h2>Start New Round</h2>
@@ -343,6 +422,7 @@
     </div>
 
     <div id="roundEntry" style="display:none;">
+      <div class="edit-banner" id="editBanner" style="display:none;">Editing saved round</div>
       <div class="hole-nav" id="holeNav"></div>
 
       <div class="card">
@@ -351,7 +431,6 @@
           <span class="par-badge" id="holePar">Par 4</span>
         </div>
 
-        <!-- Score -->
         <div class="stat-row">
           <div class="stat-label">Score <small>Total strokes</small></div>
           <div class="num-group">
@@ -361,7 +440,6 @@
           </div>
         </div>
 
-        <!-- Fairway -->
         <div class="stat-row" id="firRow">
           <div class="stat-label">Fairway Hit <small>Par 4 & 5 only</small></div>
           <div class="tick-group">
@@ -370,7 +448,6 @@
           </div>
         </div>
 
-        <!-- Miss direction -->
         <div class="stat-row" id="missRow" style="display:none;">
           <div class="stat-label">Miss Direction</div>
           <div class="dir-group">
@@ -380,7 +457,6 @@
           </div>
         </div>
 
-        <!-- GIR -->
         <div class="stat-row">
           <div class="stat-label">Green in Regulation</div>
           <div class="tick-group">
@@ -389,7 +465,16 @@
           </div>
         </div>
 
-        <!-- Putts -->
+        <div class="stat-row" id="missGreenRow" style="display:none;">
+          <div class="stat-label">Missed Green <small>Direction</small></div>
+          <div class="dir-group">
+            <button class="dir-btn" data-field="missGreen" data-val="left">Left</button>
+            <button class="dir-btn" data-field="missGreen" data-val="right">Right</button>
+            <button class="dir-btn" data-field="missGreen" data-val="short">Short</button>
+            <button class="dir-btn" data-field="missGreen" data-val="long">Long</button>
+          </div>
+        </div>
+
         <div class="stat-row">
           <div class="stat-label">Putts</div>
           <div class="num-group">
@@ -399,7 +484,6 @@
           </div>
         </div>
 
-        <!-- Bunker -->
         <div class="stat-row">
           <div class="stat-label">Bunker Shot</div>
           <div class="tick-group">
@@ -408,396 +492,7 @@
           </div>
         </div>
 
-        <!-- Chip -->
         <div class="stat-row">
           <div class="stat-label">Chip / Pitch</div>
           <div class="tick-group">
-            <button class="tick-btn" data-field="chip" data-val="yes">✓</button>
-            <button class="tick-btn" data-field="chip" data-val="no">✗</button>
-          </div>
-        </div>
-      </div>
-
-      <div class="footer-actions">
-        <button class="btn btn-secondary" id="btnPrevHole" style="flex:0.6;">← Prev</button>
-        <button class="btn btn-primary" id="btnNextHole">Next Hole →</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- HISTORY -->
-  <div id="history" class="screen">
-    <div class="card">
-      <h2>All Rounds</h2>
-      <ul class="round-list" id="historyList"></ul>
-      <div class="empty" id="historyEmpty" style="display:none;">No rounds yet.<br>Start one from the New Round tab.</div>
-    </div>
-    <button class="btn btn-danger" id="btnClearAll" style="margin-top:16px;">Clear All Data</button>
-  </div>
-
-  <div class="toast" id="toast"></div>
-
-  <script>
-    // ========== SHIFNAL SCORECARD (White tees, Par 71) ==========
-    const HOLES = [
-      { n:1,  par:4, si:9,  name:"" },
-      { n:2,  par:5, si:15, name:"" },
-      { n:3,  par:4, si:7,  name:"" },
-      { n:4,  par:4, si:13, name:"" },
-      { n:5,  par:4, si:5,  name:"" },
-      { n:6,  par:5, si:3,  name:"Road Hole" },
-      { n:7,  par:3, si:17, name:"Larches" },
-      { n:8,  par:4, si:11, name:"" },
-      { n:9,  par:4, si:1,  name:"" },
-      { n:10, par:3, si:6,  name:"" },
-      { n:11, par:4, si:18, name:"" },
-      { n:12, par:4, si:10, name:"Dovecot" },
-      { n:13, par:3, si:12, name:"" },
-      { n:14, par:4, si:2,  name:"" },
-      { n:15, par:5, si:16, name:"" },
-      { n:16, par:4, si:4,  name:"Hillside" },
-      { n:17, par:3, si:14, name:"" },
-      { n:18, par:4, si:8,  name:"Decker Hill" }
-    ];
-
-    // ========== STATE ==========
-    let rounds = JSON.parse(localStorage.getItem('shifnal_rounds') || '[]');
-    let currentRound = null; // { date, holes: [{score, fir, miss, gir, putts, bunker, chip}] }
-    let currentHoleIdx = 0;
-    let timeRange = 'all';
-
-    // ========== HELPERS ==========
-    function saveRounds() {
-      localStorage.setItem('shifnal_rounds', JSON.stringify(rounds));
-    }
-    function toast(msg) {
-      const t = document.getElementById('toast');
-      t.textContent = msg;
-      t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 1800);
-    }
-    function defaultHole(par) {
-      return {
-        score: par,
-        fir: par === 3 ? 'na' : null,
-        miss: null,
-        gir: null,
-        putts: 2,
-        bunker: null,
-        chip: null
-      };
-    }
-    function pct(n, d) {
-      if (!d) return '–';
-      return Math.round((n / d) * 100) + '%';
-    }
-    function avg(arr) {
-      if (!arr.length) return '–';
-      return (arr.reduce((a,b)=>a+b,0) / arr.length).toFixed(1);
-    }
-
-    // ========== NAV ==========
-    document.querySelectorAll('#mainNav button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-        document.getElementById(btn.dataset.screen).classList.add('active');
-        if (btn.dataset.screen === 'dashboard') renderDashboard();
-        if (btn.dataset.screen === 'history') renderHistory();
-      });
-    });
-
-    // ========== TIME FILTERS ==========
-    document.querySelectorAll('#timeFilters button').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('#timeFilters button').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        timeRange = btn.dataset.range;
-        renderDashboard();
-      });
-    });
-
-    function getFilteredRounds() {
-      if (timeRange === 'all') return rounds;
-      const days = parseInt(timeRange);
-      const cutoff = Date.now() - days * 86400000;
-      return rounds.filter(r => new Date(r.date).getTime() >= cutoff);
-    }
-
-    // ========== DASHBOARD ==========
-    function renderDashboard() {
-      const filtered = getFilteredRounds();
-      document.getElementById('roundCount').textContent = filtered.length ? `(${filtered.length} rounds)` : '';
-
-      let firHit = 0, firOpp = 0, girHit = 0, girOpp = 0;
-      let puttsArr = [], scores = [], bunkers = 0, chips = 0;
-      let missLeft = 0, missRight = 0, missTotal = 0;
-
-      filtered.forEach(r => {
-        scores.push(r.holes.reduce((s,h) => s + (h.score || 0), 0));
-        r.holes.forEach((h, i) => {
-          const par = HOLES[i].par;
-          if (par !== 3) {
-            firOpp++;
-            if (h.fir === 'yes') firHit++;
-            if (h.fir === 'no') {
-              missTotal++;
-              if (h.miss === 'left') missLeft++;
-              if (h.miss === 'right') missRight++;
-            }
-          }
-          girOpp++;
-          if (h.gir === 'yes') girHit++;
-          if (h.putts != null) puttsArr.push(h.putts);
-          if (h.bunker === 'yes') bunkers++;
-          if (h.chip === 'yes') chips++;
-        });
-      });
-
-      document.getElementById('mFIR').textContent = pct(firHit, firOpp);
-      document.getElementById('mGIR').textContent = pct(girHit, girOpp);
-      document.getElementById('mPutts').textContent = avg(puttsArr);
-      document.getElementById('mScore').textContent = avg(scores);
-      document.getElementById('mBunker').textContent = filtered.length ? (bunkers / filtered.length).toFixed(1) : '–';
-      document.getElementById('mChip').textContent = filtered.length ? (chips / filtered.length).toFixed(1) : '–';
-      document.getElementById('mLeft').textContent = missTotal ? pct(missLeft, missTotal) : '–';
-      document.getElementById('mRight').textContent = missTotal ? pct(missRight, missTotal) : '–';
-
-      const recent = filtered.slice().sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
-      const ul = document.getElementById('dashRecent');
-      if (!recent.length) {
-        ul.innerHTML = '<li class="empty">No rounds in this period</li>';
-      } else {
-        ul.innerHTML = recent.map(r => {
-          const total = r.holes.reduce((s,h) => s + (h.score||0), 0);
-          return `<li class="round-item">
-            <div><div class="date">${formatDate(r.date)}</div><div class="meta">${r.holes.filter(h=>h.score).length} holes</div></div>
-            <div class="score">${total}</div>
-          </li>`;
-        }).join('');
-      }
-    }
-
-    function formatDate(iso) {
-      const d = new Date(iso + 'T12:00:00');
-      return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
-    }
-
-    // ========== NEW ROUND ==========
-    document.getElementById('roundDate').valueAsDate = new Date();
-
-    document.getElementById('btnStartRound').addEventListener('click', () => {
-      const date = document.getElementById('roundDate').value;
-      if (!date) { toast('Pick a date'); return; }
-      currentRound = {
-        id: Date.now().toString(),
-        date,
-        holes: HOLES.map(h => defaultHole(h.par))
-      };
-      currentHoleIdx = 0;
-      document.getElementById('roundSetup').style.display = 'none';
-      document.getElementById('roundEntry').style.display = 'block';
-      buildHoleNav();
-      renderHole();
-    });
-
-    function buildHoleNav() {
-      const nav = document.getElementById('holeNav');
-      nav.innerHTML = HOLES.map((h,i) => 
-        `<button class="hole-pill ${i===currentHoleIdx?'current':''}" data-idx="${i}">${h.n}</button>`
-      ).join('');
-      nav.querySelectorAll('.hole-pill').forEach(btn => {
-        btn.addEventListener('click', () => {
-          saveCurrentHole();
-          currentHoleIdx = parseInt(btn.dataset.idx);
-          renderHole();
-        });
-      });
-    }
-
-    function renderHole() {
-      const h = HOLES[currentHoleIdx];
-      const data = currentRound.holes[currentHoleIdx];
-      document.getElementById('holeTitle').textContent = `Hole ${h.n}${h.name ? ' – ' + h.name : ''}`;
-      document.getElementById('holePar').textContent = `Par ${h.par} · SI ${h.si}`;
-      document.getElementById('valScore').textContent = data.score;
-      document.getElementById('valPutts').textContent = data.putts;
-
-      // FIR visibility
-      const firRow = document.getElementById('firRow');
-      const missRow = document.getElementById('missRow');
-      if (h.par === 3) {
-        firRow.style.display = 'none';
-        missRow.style.display = 'none';
-        data.fir = 'na';
-      } else {
-        firRow.style.display = 'flex';
-        missRow.style.display = data.fir === 'no' ? 'flex' : 'none';
-      }
-
-      // Tick buttons state
-      setTick('fir', data.fir);
-      setTick('gir', data.gir);
-      setTick('bunker', data.bunker);
-      setTick('chip', data.chip);
-      setDir(data.miss);
-
-      // Nav pills
-      document.querySelectorAll('.hole-pill').forEach((p,i) => {
-        p.classList.toggle('current', i === currentHoleIdx);
-        const done = currentRound.holes[i].gir !== null || currentRound.holes[i].score !== HOLES[i].par;
-        p.classList.toggle('done', done && i !== currentHoleIdx);
-      });
-
-      // Buttons
-      document.getElementById('btnPrevHole').style.visibility = currentHoleIdx === 0 ? 'hidden' : 'visible';
-      document.getElementById('btnNextHole').textContent = currentHoleIdx === 17 ? 'Finish Round ✓' : 'Next Hole →';
-    }
-
-    function setTick(field, val) {
-      document.querySelectorAll(`.tick-btn[data-field="${field}"]`).forEach(btn => {
-        btn.classList.remove('on-yes','on-no','on-na');
-        if (btn.dataset.val === val) {
-          btn.classList.add(val === 'yes' ? 'on-yes' : val === 'no' ? 'on-no' : 'on-na');
-        }
-      });
-    }
-    function setDir(val) {
-      document.querySelectorAll('.dir-btn').forEach(btn => {
-        btn.classList.toggle('on', btn.dataset.val === val);
-      });
-    }
-
-    // Number buttons
-    document.querySelectorAll('.num-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const field = btn.dataset.field;
-        const dir = parseInt(btn.dataset.dir);
-        const data = currentRound.holes[currentHoleIdx];
-        if (field === 'score') {
-          data.score = Math.max(1, Math.min(15, data.score + dir));
-          document.getElementById('valScore').textContent = data.score;
-        } else if (field === 'putts') {
-          data.putts = Math.max(0, Math.min(6, data.putts + dir));
-          document.getElementById('valPutts').textContent = data.putts;
-        }
-      });
-    });
-
-    // Tick buttons
-    document.querySelectorAll('.tick-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const field = btn.dataset.field;
-        const val = btn.dataset.val;
-        const data = currentRound.holes[currentHoleIdx];
-        data[field] = val;
-        setTick(field, val);
-        if (field === 'fir') {
-          document.getElementById('missRow').style.display = val === 'no' ? 'flex' : 'none';
-          if (val === 'yes') data.miss = null;
-        }
-      });
-    });
-
-    // Direction buttons
-    document.querySelectorAll('.dir-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const data = currentRound.holes[currentHoleIdx];
-        data.miss = btn.dataset.val;
-        setDir(btn.dataset.val);
-      });
-    });
-
-    function saveCurrentHole() {
-      // already live-bound
-    }
-
-    document.getElementById('btnPrevHole').addEventListener('click', () => {
-      if (currentHoleIdx > 0) {
-        saveCurrentHole();
-        currentHoleIdx--;
-        renderHole();
-      }
-    });
-
-    document.getElementById('btnNextHole').addEventListener('click', () => {
-      saveCurrentHole();
-      if (currentHoleIdx < 17) {
-        currentHoleIdx++;
-        renderHole();
-      } else {
-        // Finish
-        rounds.push(currentRound);
-        saveRounds();
-        toast('Round saved!');
-        currentRound = null;
-        document.getElementById('roundSetup').style.display = 'block';
-        document.getElementById('roundEntry').style.display = 'none';
-        // Switch to dashboard
-        document.querySelector('[data-screen="dashboard"]').click();
-      }
-    });
-
-    // ========== HISTORY ==========
-    function renderHistory() {
-      const list = document.getElementById('historyList');
-      const empty = document.getElementById('historyEmpty');
-      if (!rounds.length) {
-        list.innerHTML = '';
-        empty.style.display = 'block';
-        return;
-      }
-      empty.style.display = 'none';
-      const sorted = rounds.slice().sort((a,b) => b.date.localeCompare(a.date));
-      list.innerHTML = sorted.map(r => {
-        const total = r.holes.reduce((s,h) => s + (h.score||0), 0);
-        const firs = r.holes.filter((h,i) => HOLES[i].par !== 3 && h.fir === 'yes').length;
-        const firOpp = r.holes.filter((_,i) => HOLES[i].par !== 3).length;
-        const girs = r.holes.filter(h => h.gir === 'yes').length;
-        return `<li class="round-item" data-id="${r.id}">
-          <div>
-            <div class="date">${formatDate(r.date)}</div>
-            <div class="meta">FIR ${firs}/${firOpp} · GIR ${girs}/18</div>
-          </div>
-          <div style="text-align:right">
-            <div class="score">${total}</div>
-            <button class="btn-secondary" style="padding:4px 10px;font-size:0.7rem;margin-top:4px;width:auto;" data-delete="${r.id}">Delete</button>
-          </div>
-        </li>`;
-      }).join('');
-
-      list.querySelectorAll('[data-delete]').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          if (confirm('Delete this round?')) {
-            rounds = rounds.filter(r => r.id !== btn.dataset.delete);
-            saveRounds();
-            renderHistory();
-            toast('Round deleted');
-          }
-        });
-      });
-    }
-
-    document.getElementById('btnClearAll').addEventListener('click', () => {
-      if (confirm('Delete ALL rounds permanently?')) {
-        rounds = [];
-        saveRounds();
-        renderHistory();
-        renderDashboard();
-        toast('All data cleared');
-      }
-    });
-
-    // ========== PWA ==========
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(() => {});
-    }
-
-    // Initial render
-    renderDashboard();
-  </script>
-</body>
-</html>
-EOF
+            <button class="

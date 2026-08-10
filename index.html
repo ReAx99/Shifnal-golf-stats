@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="theme-color" content="#166534" />
+  <meta name="description" content="Track fairways, greens, putts & more at Shifnal Golf Club" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛳</text></svg>" />
+  <title>Shifnal Golf Stats</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card2: #334155;
+      --green: #166534;
+      --green-light: #22c55e;
+      --red: #dc2626;
+      --amber: #d97706;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+      --border: #475569;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100dvh;
+      padding-bottom: env(safe-area-inset-bottom);
+      line-height: 1.4;
+    }
+    header {
+      background: linear-gradient(135deg, #14532d, #166534);
+      padding: 14px 16px 12px;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      box-shadow: 0 2px 12px rgba(0,0,0,.4);
+    }
+    header h1 { font-size: 1.25rem; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+    header p { font-size: 0.75rem; opacity: 0.85; margin-top: 2px; }
+    nav {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    nav button {
+      flex: 1;
+      min-width: 70px;
+      padding: 10px 8px;
+      border: none;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    nav button.active {
+      background: var(--green);
+      color: white;
+    }
+    .screen { display: none; padding: 14px 12px 80px; }
+    .screen.active { display: block; }
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      border: 1px solid var(--border);
+    }
+    .card h2 { font-size: 0.95rem; margin-bottom: 10px; color: var(--green-light); }
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .metric {
+      background: var(--card2);
+      border-radius: 12px;
+      padding: 12px;
+      text-align: center;
+    }
+    .metric .val { font-size: 1.6rem; font-weight: 800; color: var(--green-light); }
+    .metric .label { font-size: 0.7rem; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .filters {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .filters button {
+      padding: 7px 12px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+    .filters button.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: white;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 12px 18px;
+      border: none;
+      border-radius: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      cursor: pointer;
+      width: 100%;
+    }
+    .btn-primary { background: var(--green); color: white; }
+    .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: #7f1d1d; color: #fecaca; }
+    .hole-nav {
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      padding: 8px 0 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .hole-pill {
+      min-width: 42px;
+      height: 42px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .hole-pill.current { border-color: var(--green-light); background: #14532d; }
+    .hole-pill.done { background: #16653455; border-color: var(--green); }
+    .hole-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .hole-header h2 { font-size: 1.3rem; }
+    .par-badge {
+      background: var(--card2);
+      padding: 4px 10px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .stat-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { font-weight: 600; font-size: 0.9rem; }
+    .stat-label small { display: block; font-weight: 400; color: var(--muted); font-size: 0.7rem; }
+    .tick-group { display: flex; gap: 6px; }
+    .tick-btn {
+      width: 48px;
+      height: 40px;
+      border-radius: 10px;
+      border: 2px solid var(--border);
+      background: var(--card2);
+      font-size: 1.2rem;
+      font-weight: 800;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .tick-btn.on-yes { background: #14532d; border-color: var(--green-light); color: var(--green-light); }
+    .tick-btn.on-no { background: #7f1d1d; border-color: var(--red); color: #fca5a5; }
+    .tick-btn.on-na { background: #334155; border-color: #64748b; color: #94a3b8; }
+    .num-group { display: flex; gap: 4px; align-items: center; }
+    .num-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: none;
+      background: var(--card2);
+      color: var(--text);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+    .num-val {
+      min-width: 28px;
+      text-align: center;
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+    .dir-group { display: flex; gap: 6px; flex-wrap: wrap; }
+    .dir-btn {
+      padding: 8px 12px;
+      border-radius: 8px;
+      border: 2px solid var(--border);
+      background: var(--card2);
+      color: var(--muted);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .dir-btn.on { background: #1e3a5f; border-color: #3b82f6; color: #93c5fd; }
+    .round-list { list-style: none; }
+    .round-item {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 1px solid var(--border);
+    }
+    .round-item .date { font-weight: 700; }
+    .round-item .score { font-size: 1.1rem; color: var(--green-light); font-weight: 800; }
+    .round-item .meta { font-size: 0.75rem; color: var(--muted); }
+    .empty { text-align: center; padding: 40px 20px; color: var(--muted); }
+    .footer-actions {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+      background: linear-gradient(to top, var(--bg) 70%, transparent);
+      display: flex;
+      gap: 10px;
+      z-index: 40;
+    }
+    .toast {
+      position: fixed;
+      bottom: 90px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--green);
+      color: white;
+      padding: 10px 20px;
+      border-radius: 30px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .toast.show { opacity: 1; }
+    input[type="date"] {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 1rem;
+      width: 100%;
+    }
+    .progress-bar {
+      height: 6px;
+      background: var(--card2);
+      border-radius: 3px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: var(--green-light);
+      border-radius: 3px;
+      transition: width 0.3s;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⛳ Shifnal Stats</h1>
+    <p>Decker Hill • Par 71</p>
+  </header>
+
+  <nav id="mainNav">
+    <button class="active" data-screen="dashboard">Dashboard</button>
+    <button data-screen="newround">New Round</button>
+    <button data-screen="history">History</button>
+  </nav>
+
+  <!-- DASHBOARD -->
+  <div id="dashboard" class="screen active">
+    <div class="filters" id="timeFilters">
+      <button class="active" data-range="all">All time</button>
+      <button data-range="90">Last 3 months</button>
+      <button data-range="30">Last 30 days</button>
+      <button data-range="7">Last 7 days</button>
+    </div>
+
+    <div class="card">
+      <h2>Key Metrics <span id="roundCount" style="font-weight:400;color:var(--muted);font-size:0.8rem"></span></h2>
+      <div class="metrics" id="metricsGrid">
+        <div class="metric"><div class="val" id="mFIR">–</div><div class="label">FIR %</div></div>
+        <div class="metric"><div class="val" id="mGIR">–</div><div class="label">GIR %</div></div>
+        <div class="metric"><div class="val" id="mPutts">–</div><div class="label">Avg Putts</div></div>
+        <div class="metric"><div class="val" id="mScore">–</div><div class="label">Avg Score</div></div>
+        <div class="metric"><div class="val" id="mBunker">–</div><div class="label">Bunkers / rnd</div></div>
+        <div class="metric"><div class="val" id="mChip">–</div><div class="label">Chips / rnd</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Miss Tendencies (when fairway missed)</h2>
+      <div class="metrics">
+        <div class="metric"><div class="val" id="mLeft">–</div><div class="label">Miss Left</div></div>
+        <div class="metric"><div class="val" id="mRight">–</div><div class="label">Miss Right</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent Rounds</h2>
+      <ul class="round-list" id="dashRecent"></ul>
+    </div>
+  </div>
+
+  <!-- NEW ROUND -->
+  <div id="newround" class="screen">
+    <div class="card" id="roundSetup">
+      <h2>Start New Round</h2>
+      <label style="font-size:0.85rem;color:var(--muted);display:block;margin-bottom:6px;">Date</label>
+      <input type="date" id="roundDate" />
+      <div style="height:12px"></div>
+      <button class="btn btn-primary" id="btnStartRound">Start Round →</button>
+    </div>
+
+    <div id="roundEntry" style="display:none;">
+      <div class="hole-nav" id="holeNav"></div>
+
+      <div class="card">
+        <div class="hole-header">
+          <h2 id="holeTitle">Hole 1</h2>
+          <span class="par-badge" id="holePar">Par 4</span>
+        </div>
+
+        <!-- Score -->
+        <div class="stat-row">
+          <div class="stat-label">Score <small>Total strokes</small></div>
+          <div class="num-group">
+            <button class="num-btn" data-field="score" data-dir="-1">−</button>
+            <span class="num-val" id="valScore">4</span>
+            <button class="num-btn" data-field="score" data-dir="1">+</button>
+          </div>
+        </div>
+
+        <!-- Fairway -->
+        <div class="stat-row" id="firRow">
+          <div class="stat-label">Fairway Hit <small>Par 4 & 5 only</small></div>
+          <div class="tick-group">
+            <button class="tick-btn" data-field="fir" data-val="yes">✓</button>
+            <button class="tick-btn" data-field="fir" data-val="no">✗</button>
+          </div>
+        </div>
+
+        <!-- Miss direction -->
+        <div class="stat-row" id="missRow" style="display:none;">
+          <div class="stat-label">Miss Direction</div>
+          <div class="dir-group">
+            <button class="dir-btn" data-field="miss" data-val="left">Left</button>
+            <button class="dir-btn" data-field="miss" data-val="right">Right</button>
+            <button class="dir-btn" data-field="miss" data-val="other">Other</button>
+          </div>
+        </div>
+
+        <!-- GIR -->
+        <div class="stat-row">
+          <div class="stat-label">Green in Regulation</div>
+          <div class="tick-group">
+            <button class="tick-btn" data-field="gir" data-val="yes">✓</button>
+            <button class="tick-btn" data-field="gir" data-val="no">✗</button>
+          </div>
+        </div>
+
+        <!-- Putts -->
+        <div class="stat-row">
+          <div class="stat-label">Putts</div>
+          <div class="num-group">
+            <button class="num-btn" data-field="putts" data-dir="-1">−</button>
+            <span class="num-val" id="valPutts">2</span>
+            <button class="num-btn" data-field="putts" data-dir="1">+</button>
+          </div>
+        </div>
+
+        <!-- Bunker -->
+        <div class="stat-row">
+          <div class="stat-label">Bunker Shot</div>
+          <div class="tick-group">
+            <button class="tick-btn" data-field="bunker" data-val="yes">✓</button>
+            <button class="tick-btn" data-field="bunker" data-val="no">✗</button>
+          </div>
+        </div>
+
+        <!-- Chip -->
+        <div class="stat-row">
+          <div class="stat-label">Chip / Pitch</div>
+          <div class="tick-group">
+            <button class="tick-btn" data-field="chip" data-val="yes">✓</button>
+            <button class="tick-btn" data-field="chip" data-val="no">✗</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-actions">
+        <button class="btn btn-secondary" id="btnPrevHole" style="flex:0.6;">← Prev</button>
+        <button class="btn btn-primary" id="btnNextHole">Next Hole →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORY -->
+  <div id="history" class="screen">
+    <div class="card">
+      <h2>All Rounds</h2>
+      <ul class="round-list" id="historyList"></ul>
+      <div class="empty" id="historyEmpty" style="display:none;">No rounds yet.<br>Start one from the New Round tab.</div>
+    </div>
+    <button class="btn btn-danger" id="btnClearAll" style="margin-top:16px;">Clear All Data</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ========== SHIFNAL SCORECARD (White tees, Par 71) ==========
+    const HOLES = [
+      { n:1,  par:4, si:9,  name:"" },
+      { n:2,  par:5, si:15, name:"" },
+      { n:3,  par:4, si:7,  name:"" },
+      { n:4,  par:4, si:13, name:"" },
+      { n:5,  par:4, si:5,  name:"" },
+      { n:6,  par:5, si:3,  name:"Road Hole" },
+      { n:7,  par:3, si:17, name:"Larches" },
+      { n:8,  par:4, si:11, name:"" },
+      { n:9,  par:4, si:1,  name:"" },
+      { n:10, par:3, si:6,  name:"" },
+      { n:11, par:4, si:18, name:"" },
+      { n:12, par:4, si:10, name:"Dovecot" },
+      { n:13, par:3, si:12, name:"" },
+      { n:14, par:4, si:2,  name:"" },
+      { n:15, par:5, si:16, name:"" },
+      { n:16, par:4, si:4,  name:"Hillside" },
+      { n:17, par:3, si:14, name:"" },
+      { n:18, par:4, si:8,  name:"Decker Hill" }
+    ];
+
+    // ========== STATE ==========
+    let rounds = JSON.parse(localStorage.getItem('shifnal_rounds') || '[]');
+    let currentRound = null; // { date, holes: [{score, fir, miss, gir, putts, bunker, chip}] }
+    let currentHoleIdx = 0;
+    let timeRange = 'all';
+
+    // ========== HELPERS ==========
+    function saveRounds() {
+      localStorage.setItem('shifnal_rounds', JSON.stringify(rounds));
+    }
+    function toast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 1800);
+    }
+    function defaultHole(par) {
+      return {
+        score: par,
+        fir: par === 3 ? 'na' : null,
+        miss: null,
+        gir: null,
+        putts: 2,
+        bunker: null,
+        chip: null
+      };
+    }
+    function pct(n, d) {
+      if (!d) return '–';
+      return Math.round((n / d) * 100) + '%';
+    }
+    function avg(arr) {
+      if (!arr.length) return '–';
+      return (arr.reduce((a,b)=>a+b,0) / arr.length).toFixed(1);
+    }
+
+    // ========== NAV ==========
+    document.querySelectorAll('#mainNav button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(btn.dataset.screen).classList.add('active');
+        if (btn.dataset.screen === 'dashboard') renderDashboard();
+        if (btn.dataset.screen === 'history') renderHistory();
+      });
+    });
+
+    // ========== TIME FILTERS ==========
+    document.querySelectorAll('#timeFilters button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#timeFilters button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        timeRange = btn.dataset.range;
+        renderDashboard();
+      });
+    });
+
+    function getFilteredRounds() {
+      if (timeRange === 'all') return rounds;
+      const days = parseInt(timeRange);
+      const cutoff = Date.now() - days * 86400000;
+      return rounds.filter(r => new Date(r.date).getTime() >= cutoff);
+    }
+
+    // ========== DASHBOARD ==========
+    function renderDashboard() {
+      const filtered = getFilteredRounds();
+      document.getElementById('roundCount').textContent = filtered.length ? `(${filtered.length} rounds)` : '';
+
+      let firHit = 0, firOpp = 0, girHit = 0, girOpp = 0;
+      let puttsArr = [], scores = [], bunkers = 0, chips = 0;
+      let missLeft = 0, missRight = 0, missTotal = 0;
+
+      filtered.forEach(r => {
+        scores.push(r.holes.reduce((s,h) => s + (h.score || 0), 0));
+        r.holes.forEach((h, i) => {
+          const par = HOLES[i].par;
+          if (par !== 3) {
+            firOpp++;
+            if (h.fir === 'yes') firHit++;
+            if (h.fir === 'no') {
+              missTotal++;
+              if (h.miss === 'left') missLeft++;
+              if (h.miss === 'right') missRight++;
+            }
+          }
+          girOpp++;
+          if (h.gir === 'yes') girHit++;
+          if (h.putts != null) puttsArr.push(h.putts);
+          if (h.bunker === 'yes') bunkers++;
+          if (h.chip === 'yes') chips++;
+        });
+      });
+
+      document.getElementById('mFIR').textContent = pct(firHit, firOpp);
+      document.getElementById('mGIR').textContent = pct(girHit, girOpp);
+      document.getElementById('mPutts').textContent = avg(puttsArr);
+      document.getElementById('mScore').textContent = avg(scores);
+      document.getElementById('mBunker').textContent = filtered.length ? (bunkers / filtered.length).toFixed(1) : '–';
+      document.getElementById('mChip').textContent = filtered.length ? (chips / filtered.length).toFixed(1) : '–';
+      document.getElementById('mLeft').textContent = missTotal ? pct(missLeft, missTotal) : '–';
+      document.getElementById('mRight').textContent = missTotal ? pct(missRight, missTotal) : '–';
+
+      const recent = filtered.slice().sort((a,b) => b.date.localeCompare(a.date)).slice(0,5);
+      const ul = document.getElementById('dashRecent');
+      if (!recent.length) {
+        ul.innerHTML = '<li class="empty">No rounds in this period</li>';
+      } else {
+        ul.innerHTML = recent.map(r => {
+          const total = r.holes.reduce((s,h) => s + (h.score||0), 0);
+          return `<li class="round-item">
+            <div><div class="date">${formatDate(r.date)}</div><div class="meta">${r.holes.filter(h=>h.score).length} holes</div></div>
+            <div class="score">${total}</div>
+          </li>`;
+        }).join('');
+      }
+    }
+
+    function formatDate(iso) {
+      const d = new Date(iso + 'T12:00:00');
+      return d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short', year:'numeric' });
+    }
+
+    // ========== NEW ROUND ==========
+    document.getElementById('roundDate').valueAsDate = new Date();
+
+    document.getElementById('btnStartRound').addEventListener('click', () => {
+      const date = document.getElementById('roundDate').value;
+      if (!date) { toast('Pick a date'); return; }
+      currentRound = {
+        id: Date.now().toString(),
+        date,
+        holes: HOLES.map(h => defaultHole(h.par))
+      };
+      currentHoleIdx = 0;
+      document.getElementById('roundSetup').style.display = 'none';
+      document.getElementById('roundEntry').style.display = 'block';
+      buildHoleNav();
+      renderHole();
+    });
+
+    function buildHoleNav() {
+      const nav = document.getElementById('holeNav');
+      nav.innerHTML = HOLES.map((h,i) => 
+        `<button class="hole-pill ${i===currentHoleIdx?'current':''}" data-idx="${i}">${h.n}</button>`
+      ).join('');
+      nav.querySelectorAll('.hole-pill').forEach(btn => {
+        btn.addEventListener('click', () => {
+          saveCurrentHole();
+          currentHoleIdx = parseInt(btn.dataset.idx);
+          renderHole();
+        });
+      });
+    }
+
+    function renderHole() {
+      const h = HOLES[currentHoleIdx];
+      const data = currentRound.holes[currentHoleIdx];
+      document.getElementById('holeTitle').textContent = `Hole ${h.n}${h.name ? ' – ' + h.name : ''}`;
+      document.getElementById('holePar').textContent = `Par ${h.par} · SI ${h.si}`;
+      document.getElementById('valScore').textContent = data.score;
+      document.getElementById('valPutts').textContent = data.putts;
+
+      // FIR visibility
+      const firRow = document.getElementById('firRow');
+      const missRow = document.getElementById('missRow');
+      if (h.par === 3) {
+        firRow.style.display = 'none';
+        missRow.style.display = 'none';
+        data.fir = 'na';
+      } else {
+        firRow.style.display = 'flex';
+        missRow.style.display = data.fir === 'no' ? 'flex' : 'none';
+      }
+
+      // Tick buttons state
+      setTick('fir', data.fir);
+      setTick('gir', data.gir);
+      setTick('bunker', data.bunker);
+      setTick('chip', data.chip);
+      setDir(data.miss);
+
+      // Nav pills
+      document.querySelectorAll('.hole-pill').forEach((p,i) => {
+        p.classList.toggle('current', i === currentHoleIdx);
+        const done = currentRound.holes[i].gir !== null || currentRound.holes[i].score !== HOLES[i].par;
+        p.classList.toggle('done', done && i !== currentHoleIdx);
+      });
+
+      // Buttons
+      document.getElementById('btnPrevHole').style.visibility = currentHoleIdx === 0 ? 'hidden' : 'visible';
+      document.getElementById('btnNextHole').textContent = currentHoleIdx === 17 ? 'Finish Round ✓' : 'Next Hole →';
+    }
+
+    function setTick(field, val) {
+      document.querySelectorAll(`.tick-btn[data-field="${field}"]`).forEach(btn => {
+        btn.classList.remove('on-yes','on-no','on-na');
+        if (btn.dataset.val === val) {
+          btn.classList.add(val === 'yes' ? 'on-yes' : val === 'no' ? 'on-no' : 'on-na');
+        }
+      });
+    }
+    function setDir(val) {
+      document.querySelectorAll('.dir-btn').forEach(btn => {
+        btn.classList.toggle('on', btn.dataset.val === val);
+      });
+    }
+
+    // Number buttons
+    document.querySelectorAll('.num-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const field = btn.dataset.field;
+        const dir = parseInt(btn.dataset.dir);
+        const data = currentRound.holes[currentHoleIdx];
+        if (field === 'score') {
+          data.score = Math.max(1, Math.min(15, data.score + dir));
+          document.getElementById('valScore').textContent = data.score;
+        } else if (field === 'putts') {
+          data.putts = Math.max(0, Math.min(6, data.putts + dir));
+          document.getElementById('valPutts').textContent = data.putts;
+        }
+      });
+    });
+
+    // Tick buttons
+    document.querySelectorAll('.tick-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const field = btn.dataset.field;
+        const val = btn.dataset.val;
+        const data = currentRound.holes[currentHoleIdx];
+        data[field] = val;
+        setTick(field, val);
+        if (field === 'fir') {
+          document.getElementById('missRow').style.display = val === 'no' ? 'flex' : 'none';
+          if (val === 'yes') data.miss = null;
+        }
+      });
+    });
+
+    // Direction buttons
+    document.querySelectorAll('.dir-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const data = currentRound.holes[currentHoleIdx];
+        data.miss = btn.dataset.val;
+        setDir(btn.dataset.val);
+      });
+    });
+
+    function saveCurrentHole() {
+      // already live-bound
+    }
+
+    document.getElementById('btnPrevHole').addEventListener('click', () => {
+      if (currentHoleIdx > 0) {
+        saveCurrentHole();
+        currentHoleIdx--;
+        renderHole();
+      }
+    });
+
+    document.getElementById('btnNextHole').addEventListener('click', () => {
+      saveCurrentHole();
+      if (currentHoleIdx < 17) {
+        currentHoleIdx++;
+        renderHole();
+      } else {
+        // Finish
+        rounds.push(currentRound);
+        saveRounds();
+        toast('Round saved!');
+        currentRound = null;
+        document.getElementById('roundSetup').style.display = 'block';
+        document.getElementById('roundEntry').style.display = 'none';
+        // Switch to dashboard
+        document.querySelector('[data-screen="dashboard"]').click();
+      }
+    });
+
+    // ========== HISTORY ==========
+    function renderHistory() {
+      const list = document.getElementById('historyList');
+      const empty = document.getElementById('historyEmpty');
+      if (!rounds.length) {
+        list.innerHTML = '';
+        empty.style.display = 'block';
+        return;
+      }
+      empty.style.display = 'none';
+      const sorted = rounds.slice().sort((a,b) => b.date.localeCompare(a.date));
+      list.innerHTML = sorted.map(r => {
+        const total = r.holes.reduce((s,h) => s + (h.score||0), 0);
+        const firs = r.holes.filter((h,i) => HOLES[i].par !== 3 && h.fir === 'yes').length;
+        const firOpp = r.holes.filter((_,i) => HOLES[i].par !== 3).length;
+        const girs = r.holes.filter(h => h.gir === 'yes').length;
+        return `<li class="round-item" data-id="${r.id}">
+          <div>
+            <div class="date">${formatDate(r.date)}</div>
+            <div class="meta">FIR ${firs}/${firOpp} · GIR ${girs}/18</div>
+          </div>
+          <div style="text-align:right">
+            <div class="score">${total}</div>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:0.7rem;margin-top:4px;width:auto;" data-delete="${r.id}">Delete</button>
+          </div>
+        </li>`;
+      }).join('');
+
+      list.querySelectorAll('[data-delete]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          if (confirm('Delete this round?')) {
+            rounds = rounds.filter(r => r.id !== btn.dataset.delete);
+            saveRounds();
+            renderHistory();
+            toast('Round deleted');
+          }
+        });
+      });
+    }
+
+    document.getElementById('btnClearAll').addEventListener('click', () => {
+      if (confirm('Delete ALL rounds permanently?')) {
+        rounds = [];
+        saveRounds();
+        renderHistory();
+        renderDashboard();
+        toast('All data cleared');
+      }
+    });
+
+    // ========== PWA ==========
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    }
+
+    // Initial render
+    renderDashboard();
+  </script>
+</body>
+</html>
+EOF

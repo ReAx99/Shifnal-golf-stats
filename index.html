@@ -60,6 +60,10 @@
       align-items: center;
       gap: 6px;
       cursor: pointer;
+      max-width: 70%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
     .player-chip span { opacity: 0.8; font-weight: 400; }
     nav {
@@ -290,9 +294,12 @@
       pointer-events: none;
       z-index: 100;
       white-space: nowrap;
+      max-width: 90vw;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .toast.show { opacity: 1; }
-    input[type="date"], input[type="text"] {
+    input[type="date"], input[type="text"], input[type="file"] {
       background: var(--card2);
       border: 1px solid var(--border);
       color: var(--text);
@@ -344,6 +351,14 @@
       margin-bottom: 10px;
       text-align: center;
     }
+    .data-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    .data-actions .btn { font-size: 0.85rem; }
+    .hidden-file { display: none; }
   </style>
 </head>
 <body>
@@ -502,8 +517,9 @@
       </div>
 
       <div class="footer-actions">
-        <button class="btn btn-secondary" id="btnPrevHole" style="flex:0.6;">← Prev</button>
-        <button class="btn btn-primary" id="btnNextHole">Next Hole →</button>
+        <button class="btn btn-secondary" id="btnCancelRound" style="flex:0.5;">Cancel</button>
+        <button class="btn btn-secondary" id="btnPrevHole" style="flex:0.5;">← Prev</button>
+        <button class="btn btn-primary" id="btnNextHole" style="flex:1.2;">Next Hole →</button>
       </div>
     </div>
   </div>
@@ -515,7 +531,13 @@
       <ul class="round-list" id="historyList"></ul>
       <div class="empty" id="historyEmpty" style="display:none;">No rounds yet.<br>Start one from the New Round tab.</div>
     </div>
-    <button class="btn btn-danger" id="btnClearAll" style="margin-top:16px;">Clear This Player’s Data</button>
+
+    <div class="data-actions">
+      <button class="btn btn-secondary" id="btnExport">Export All Data (JSON)</button>
+      <button class="btn btn-secondary" id="btnImport">Import Data…</button>
+      <input type="file" id="importFile" class="hidden-file" accept=".json,application/json" />
+      <button class="btn btn-danger" id="btnClearAll">Clear This Player’s Data</button>
+    </div>
   </div>
 
   <!-- Player Switch Modal -->
@@ -562,6 +584,7 @@
     let currentHoleIdx = 0;
     let timeRange = 'all';
     let isEditing = false;
+    let touchedHoles = new Set();
 
     function loadRounds() {
       if (!currentPlayer) { rounds = []; return; }
@@ -576,6 +599,12 @@
       if (currentPlayer) localStorage.setItem('shifnal_current_player', currentPlayer);
     }
     function setPlayer(name) {
+      if (currentRound && !isEditing) {
+        if (!confirm('You have an unfinished round. Switch player and discard it?')) return;
+        currentRound = null;
+        document.getElementById('roundSetup').style.display = 'block';
+        document.getElementById('roundEntry').style.display = 'none';
+      }
       currentPlayer = name;
       if (!players.includes(name)) { players.push(name); savePlayers(); }
       localStorage.setItem('shifnal_current_player', name);
@@ -628,7 +657,7 @@
       const t = document.getElementById('toast');
       t.textContent = msg;
       t.classList.add('show');
-      setTimeout(() => t.classList.remove('show'), 1800);
+      setTimeout(() => t.classList.remove('show'), 2000);
     }
     function defaultHole(par) {
       return { score: par, fir: par === 3 ? 'na' : null, miss: null, gir: null, missGreen: null, putts: 2, bunker: null, chip: null };
@@ -642,6 +671,12 @@
 
     document.querySelectorAll('#mainNav button').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (currentRound && !isEditing && btn.dataset.screen !== 'newround') {
+          if (!confirm('You have an unfinished round. Leave and discard it?')) return;
+          currentRound = null;
+          document.getElementById('roundSetup').style.display = 'block';
+          document.getElementById('roundEntry').style.display = 'none';
+        }
         document.querySelectorAll('#mainNav button').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
@@ -664,7 +699,18 @@
       if (timeRange === 'all') return rounds;
       const days = parseInt(timeRange);
       const cutoff = Date.now() - days * 86400000;
-      return rounds.filter(r => new Date(r.date).getTime() >= cutoff);
+      return rounds.filter(r => {
+        const t = new Date(r.date + 'T12:00:00').getTime();
+        return t >= cutoff;
+      });
+    }
+
+    function isHoleDone(h, idx) {
+      if (h.gir !== null) return true;
+      if (touchedHoles.has(idx) && currentHoleIdx > idx) return true;
+      const par = HOLES[idx].par;
+      if (h.score !== par) return true;
+      return false;
     }
 
     function renderDashboard() {
@@ -740,6 +786,7 @@
       const date = document.getElementById('roundDate').value;
       if (!date) { toast('Pick a date'); return; }
       isEditing = false;
+      touchedHoles = new Set();
       currentRound = { id: Date.now().toString(), date, holes: HOLES.map(h => defaultHole(h.par)) };
       currentHoleIdx = 0;
       document.getElementById('roundSetup').style.display = 'none';
@@ -751,6 +798,7 @@
 
     function startEditRound(round) {
       isEditing = true;
+      touchedHoles = new Set();
       currentRound = JSON.parse(JSON.stringify(round));
       currentRound.holes.forEach(h => { if (h.missGreen === undefined) h.missGreen = null; });
       currentHoleIdx = 0;
@@ -771,7 +819,11 @@
         `<button class="hole-pill ${i===currentHoleIdx?'current':''}" data-idx="${i}">${h.n}</button>`
       ).join('');
       nav.querySelectorAll('.hole-pill').forEach(btn => {
-        btn.addEventListener('click', () => { currentHoleIdx = parseInt(btn.dataset.idx); renderHole(); });
+        btn.addEventListener('click', () => {
+          touchedHoles.add(currentHoleIdx);
+          currentHoleIdx = parseInt(btn.dataset.idx);
+          renderHole();
+        });
       });
     }
 
@@ -804,7 +856,7 @@
 
       document.querySelectorAll('.hole-pill').forEach((p,i) => {
         p.classList.toggle('current', i === currentHoleIdx);
-        const done = currentRound.holes[i].gir !== null;
+        const done = isHoleDone(currentRound.holes[i], i);
         p.classList.toggle('done', done && i !== currentHoleIdx);
       });
 
@@ -831,6 +883,7 @@
     document.querySelectorAll('.num-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!currentRound) return;
+        touchedHoles.add(currentHoleIdx);
         const field = btn.dataset.field;
         const dir = parseInt(btn.dataset.dir);
         const data = currentRound.holes[currentHoleIdx];
@@ -841,12 +894,14 @@
           data.putts = Math.max(0, Math.min(6, data.putts + dir));
           document.getElementById('valPutts').textContent = data.putts;
         }
+        renderHole();
       });
     });
 
     document.querySelectorAll('.tick-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!currentRound) return;
+        touchedHoles.add(currentHoleIdx);
         const field = btn.dataset.field;
         const val = btn.dataset.val;
         const data = currentRound.holes[currentHoleIdx];
@@ -860,12 +915,14 @@
           document.getElementById('missGreenRow').style.display = val === 'no' ? 'flex' : 'none';
           if (val === 'yes') data.missGreen = null;
         }
+        renderHole();
       });
     });
 
     document.querySelectorAll('.dir-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         if (!currentRound) return;
+        touchedHoles.add(currentHoleIdx);
         const field = btn.dataset.field;
         const data = currentRound.holes[currentHoleIdx];
         data[field] = btn.dataset.val;
@@ -874,11 +931,16 @@
     });
 
     document.getElementById('btnPrevHole').addEventListener('click', () => {
-      if (currentHoleIdx > 0) { currentHoleIdx--; renderHole(); }
+      if (currentHoleIdx > 0) {
+        touchedHoles.add(currentHoleIdx);
+        currentHoleIdx--;
+        renderHole();
+      }
     });
 
     document.getElementById('btnNextHole').addEventListener('click', () => {
       if (currentHoleIdx < 17) {
+        touchedHoles.add(currentHoleIdx);
         currentHoleIdx++;
         renderHole();
       } else {
@@ -893,10 +955,21 @@
         saveRounds();
         currentRound = null;
         isEditing = false;
+        touchedHoles = new Set();
         document.getElementById('roundSetup').style.display = 'block';
         document.getElementById('roundEntry').style.display = 'none';
         document.querySelector('[data-screen="dashboard"]').click();
       }
+    });
+
+    document.getElementById('btnCancelRound').addEventListener('click', () => {
+      if (!confirm(isEditing ? 'Discard changes to this round?' : 'Cancel this round? Progress will be lost.')) return;
+      currentRound = null;
+      isEditing = false;
+      touchedHoles = new Set();
+      document.getElementById('roundSetup').style.display = 'block';
+      document.getElementById('roundEntry').style.display = 'none';
+      toast(isEditing ? 'Edit cancelled' : 'Round cancelled');
     });
 
     function renderHistory() {
@@ -949,13 +1022,84 @@
 
     document.getElementById('btnClearAll').addEventListener('click', () => {
       if (!currentPlayer) return;
-      if (confirm(`Delete ALL rounds for ${currentPlayer}?`)) {
+      if (confirm(`Delete ALL rounds for ${currentPlayer}? This cannot be undone.`)) {
         rounds = [];
         saveRounds();
         renderHistory();
         renderDashboard();
         toast('All data cleared for ' + currentPlayer);
       }
+    });
+
+    // EXPORT / IMPORT
+    document.getElementById('btnExport').addEventListener('click', () => {
+      const exportData = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        players: players,
+        currentPlayer: currentPlayer,
+        roundsByPlayer: {}
+      };
+      players.forEach(p => {
+        exportData.roundsByPlayer[p] = JSON.parse(localStorage.getItem('shifnal_rounds_' + p) || '[]');
+      });
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `shifnal-stats-backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast('Backup downloaded');
+    });
+
+    document.getElementById('btnImport').addEventListener('click', () => {
+      document.getElementById('importFile').click();
+    });
+
+    document.getElementById('importFile').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = JSON.parse(ev.target.result);
+          if (!data.players || !data.roundsByPlayer) {
+            toast('Invalid backup file');
+            return;
+          }
+          if (!confirm(`Import will merge data from this backup.\n\nPlayers in file: ${data.players.join(', ') || 'none'}\n\nContinue?`)) {
+            e.target.value = '';
+            return;
+          }
+
+          data.players.forEach(p => {
+            if (!players.includes(p)) players.push(p);
+          });
+          savePlayers();
+
+          Object.keys(data.roundsByPlayer).forEach(p => {
+            const existing = JSON.parse(localStorage.getItem('shifnal_rounds_' + p) || '[]');
+            const incoming = data.roundsByPlayer[p] || [];
+            const existingIds = new Set(existing.map(r => r.id));
+            const merged = existing.concat(incoming.filter(r => !existingIds.has(r.id)));
+            localStorage.setItem('shifnal_rounds_' + p, JSON.stringify(merged));
+          });
+
+          if (currentPlayer) {
+            loadRounds();
+            renderDashboard();
+            renderHistory();
+          }
+          toast('Import complete');
+        } catch (err) {
+          console.error(err);
+          toast('Could not read backup file');
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file);
     });
 
     if ('serviceWorker' in navigator) {
